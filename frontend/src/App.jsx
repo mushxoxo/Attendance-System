@@ -1,9 +1,15 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef } from 'react';
 import './styles/globals.css';
 import { uploadReferencePhotos, uploadClassPhoto, processAttendance } from './services/api';
-import { Toaster, toast } from 'react-hot-toast';
-import { School } from 'lucide-react';
-import AttendanceTable from './components/AttendanceTable';
+import { Toaster as HotToaster, toast } from 'react-hot-toast';
+import { Upload, Camera } from 'lucide-react';
+
+// UI Components
+import { Button } from './components/ui/button';
+import Navbar from './components/Navbar';
+import UploadCard from './components/UploadCard';
+import ProcessingCard from './components/ProcessingCard';
+import AttendanceResults from './components/AttendanceResults';
 
 function App() {
   // State for reference photos
@@ -22,6 +28,9 @@ function App() {
   const [attendanceData, setAttendanceData] = useState([]);
   const [csvFilename, setCsvFilename] = useState('');
   const [error, setError] = useState('');
+  
+  // State for current view/step
+  const [currentStep, setCurrentStep] = useState('upload'); // 'upload', 'processing', 'results'
   
   // Refs for file inputs
   const referenceInputRef = useRef(null);
@@ -192,133 +201,128 @@ function App() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen gradient-bg">
       {/* Toast notifications */}
-      <Toaster position="top-right" />
+      <HotToaster position="top-right" />
       
-      <div className="container mx-auto px-4 py-8">
-        <header className="text-center mb-8">
-          <div className="flex items-center justify-center gap-2 mb-2">
-            <School size={32} className="text-blue-600" />
-            <h1 className="text-3xl font-bold text-gray-800">DeepFace Attendance System</h1>
-          </div>
-          <p className="text-gray-600">
-            Upload reference photos and class images to process attendance using facial recognition
-          </p>
-        </header>
+      {/* Navigation Bar */}
+      <Navbar 
+        currentStep={currentStep} 
+        setCurrentStep={setCurrentStep} 
+        attendanceData={attendanceData} 
+      />
 
+      <div className="container mx-auto px-4 py-8">
         {error && (
-          <div className="error-message">
-            {error}
+          <div className="mb-6 p-4 bg-red-50 border-l-4 border-red-500 text-red-700 rounded-md shadow-sm animate-fade-in">
+            <div className="flex items-center">
+              <span className="mr-2">⚠️</span>
+              <span>{error}</span>
+            </div>
           </div>
         )}
 
-        <main>
-          {/* Reference Photos Section */}
-          <div className="card">
-            <h2 className="flex items-center gap-2">
-              <span className="text-blue-600">Reference Photos</span>
-            </h2>
-            <p>Upload reference photos of students (each named with student ID)</p>
-            <div className="upload-section">
-              <div className="file-input-wrapper">
-                <button 
-                  onClick={() => referenceInputRef.current.click()}
-                  className="file-select-button"
-                >
-                  Select Reference Photos
-                </button>
-                <input 
-                  ref={referenceInputRef}
-                  type="file" 
-                  multiple 
-                  accept="image/*" 
+        <main className="max-w-7xl mx-auto">
+          {currentStep === 'upload' && (
+            <div className="space-y-6">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* Reference Photos Card */}
+                <UploadCard 
+                  title="Reference Photos"
+                  description="Upload reference photos of students. Each file should be named with the student ID (e.g., student123.jpg)."
+                  icon={Upload}
+                  files={referenceFiles}
+                  isUploaded={isReferenceUploaded}
+                  isUploading={isUploadingReference}
+                  onDrop={(e) => {
+                    const files = Array.from(e.dataTransfer.files);
+                    if (files.length > 0) {
+                      setReferenceFiles(files);
+                    }
+                  }}
+                  onUpload={handleUploadReference}
+                  inputRef={referenceInputRef}
                   onChange={handleReferenceChange}
-                  style={{ display: 'none' }}
+                  multiple={true}
                 />
-                {referenceFiles.length > 0 && (
-                  <span className="file-count">{referenceFiles.length} file(s) selected</span>
-                )}
-              </div>
-              
-              <button 
-                onClick={handleUploadReference} 
-                disabled={referenceFiles.length === 0 || isUploadingReference}
-                className="primary-button"
-              >
-                {isUploadingReference ? 'Uploading...' : 'Upload References'}
-              </button>
-            </div>
-            
-            {isReferenceUploaded && (
-              <div className="success-message">
-                ✓ Reference photos uploaded successfully!
-              </div>
-            )}
-          </div>
-
-          {/* Class Photo Section */}
-          <div className="card">
-            <h2 className="flex items-center gap-2">
-              <span className="text-blue-600">Class Photo</span>
-            </h2>
-            <p>Upload a photo of the class to process attendance</p>
-            <div className="upload-section">
-              <div className="file-input-wrapper">
-                <button 
-                  onClick={() => classPhotoInputRef.current.click()}
-                  className="file-select-button"
-                >
-                  Select Class Photo
-                </button>
-                <input 
-                  ref={classPhotoInputRef}
-                  type="file" 
-                  accept="image/*" 
+                
+                {/* Class Photo Card */}
+                <UploadCard 
+                  title="Class Photo"
+                  description="Upload a photo of the class to process attendance."
+                  icon={Camera}
+                  files={classPhoto ? [classPhoto] : []}
+                  isUploaded={isClassPhotoUploaded}
+                  isUploading={false}
+                  preview={classPhotoPreview}
+                  onDrop={(e) => {
+                    const file = e.dataTransfer.files[0];
+                    if (file) {
+                      setClassPhoto(file);
+                      const reader = new FileReader();
+                      reader.onload = (e) => {
+                        setClassPhotoPreview(e.target.result);
+                      };
+                      reader.readAsDataURL(file);
+                    }
+                  }}
+                  onUpload={handleUploadClassPhoto}
+                  inputRef={classPhotoInputRef}
                   onChange={handleClassPhotoChange}
-                  style={{ display: 'none' }}
                 />
-                {classPhoto && (
-                  <span className="file-name">{classPhoto.name}</span>
-                )}
               </div>
               
-              <div className="button-group">
-                <button 
-                  onClick={handleUploadClassPhoto} 
-                  disabled={!classPhoto}
-                  className="secondary-button"
-                >
-                  Upload Photo
-                </button>
-                
-                <button 
-                  onClick={handleProcessAttendance} 
-                  disabled={!isClassPhotoUploaded || isProcessing}
-                  className="primary-button"
-                >
-                  {isProcessing ? 'Processing...' : 'Process Attendance'}
-                </button>
-              </div>
-            </div>
-            
-            {classPhotoPreview && (
-              <div className="photo-preview">
-                <h3>Preview:</h3>
-                <img src={classPhotoPreview} alt="Class Photo Preview" />
-                
-                {isClassPhotoUploaded && (
-                  <div className="success-message">
-                    ✓ Class photo uploaded successfully!
+              {/* Process Attendance Button */}
+              {isClassPhotoUploaded && (
+                <div className="flex justify-center mt-8">
+                  <div className="relative">
+                    {/* Animated glow effect */}
+                    <div className="absolute inset-0 bg-gradient-to-r from-blue-400 to-indigo-500 rounded-lg blur opacity-30 animate-pulse"></div>
+                    
+                    <Button
+                      variant="gradient"
+                      size="xl"
+                      onClick={() => {
+                        handleProcessAttendance();
+                        if (!isProcessing) {
+                          setCurrentStep('processing');
+                          setTimeout(() => {
+                            if (attendanceData.length > 0) {
+                              setCurrentStep('results');
+                            } else {
+                              setCurrentStep('upload');
+                            }
+                          }, 3000); // Show processing state for at least 3 seconds
+                        }
+                      }}
+                      disabled={!isClassPhotoUploaded || isProcessing}
+                      className="relative px-8 py-6 font-bold text-lg shadow-lg hover:shadow-xl"
+                    >
+                      {isProcessing ? (
+                        <div className="flex items-center justify-center gap-3">
+                          <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                          <span>Processing Attendance...</span>
+                        </div>
+                      ) : (
+                        <span>Process Attendance</span>
+                      )}
+                    </Button>
                   </div>
-                )}
-              </div>
-            )}
-          </div>
-
-          {/* Attendance Results Section */}
-          {attendanceData.length > 0 && (
-            <AttendanceTable 
+                </div>
+              )}
+            </div>
+          )}
+          
+          {/* Processing View */}
+          {currentStep === 'processing' && (
+            <div className="flex justify-center items-center py-12">
+              <ProcessingCard />
+            </div>
+          )}
+          
+          {/* Results View */}
+          {currentStep === 'results' && attendanceData.length > 0 && (
+            <AttendanceResults 
               attendanceData={attendanceData} 
               csvFilename={csvFilename} 
             />
@@ -326,7 +330,7 @@ function App() {
         </main>
 
         <footer className="mt-12 pt-6 border-t border-gray-200 text-center text-gray-500 text-sm">
-          <p>DeepFace Attendance System &copy; {new Date().getFullYear()}</p>
+          <p>AI Attendance System &copy; {new Date().getFullYear()}</p>
         </footer>
       </div>
     </div>
