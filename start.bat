@@ -1,0 +1,6 @@
+@echo off
+echo Starting Backend Server...
+start "Backend" cmd /k "cd backend && python run_server.py"
+
+echo Starting Frontend Dev Server...
+start "Frontend" cmd /k "cd frontend && npm run dev"

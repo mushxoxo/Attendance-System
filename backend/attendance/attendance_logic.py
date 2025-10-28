@@ -63,44 +63,63 @@ def process_attendance(photo_path: str, reference_faces: Dict[str, np.ndarray]) 
     Returns:
         List of attendance records
     """
+    print(f"\n===== STARTING ATTENDANCE PROCESSING =====")
+    print(f"Processing photo: {photo_path}")
+    print(f"Number of reference faces: {len(reference_faces)}")
+    print(f"Reference student IDs: {list(reference_faces.keys())}")
+    
     img = cv2.imread(photo_path)
     if img is None:
         print("Error: Could not load image")
         return []
+    
+    print(f"Image loaded successfully. Shape: {img.shape}")
 
     # Detect faces in class photo
     try:
+        print("Detecting faces in class photo...")
         detections = DeepFace.extract_faces(
             img_path=photo_path,
             detector_backend='opencv',
             enforce_detection=False
         )
+        print(f"Face detection completed successfully")
     except Exception as e:
         print(f"Error detecting faces: {e}")
         return []
 
     print(f"Detected {len(detections)} faces in class photo")
+    if len(detections) == 0:
+        print("No faces detected in the class photo. Please try another image.")
+        return []
 
     attendance_records = []
     matched_students = set()
 
     # Match each detected face with reference faces
+    print("\n===== STARTING FACE MATCHING PROCESS =====")
     for idx, detection in enumerate(detections):
+        print(f"\nProcessing detected face #{idx+1}/{len(detections)}")
         face = detection["face"]
 
         # Convert to proper format
         if face.dtype != np.uint8:
             face = (face * 255).astype(np.uint8) if face.max() <= 1.0 else face.astype(np.uint8)
+        print(f"Face shape: {face.shape}")
 
         best_match = None
         best_distance = float('inf')
+        match_count = 0
 
         # Compare with all reference faces
+        print(f"Comparing with {len(reference_faces)} reference faces...")
         for student_id, ref_face in reference_faces.items():
             if student_id in matched_students:
+                print(f"Skipping {student_id} - already matched")
                 continue
 
             try:
+                print(f"  Comparing with student ID: {student_id}")
                 result = DeepFace.verify(
                     img1_path=face,
                     img2_path=ref_face,
@@ -108,16 +127,22 @@ def process_attendance(photo_path: str, reference_faces: Dict[str, np.ndarray]) 
                     detector_backend='skip',
                     enforce_detection=False
                 )
+                match_count += 1
+                print(f"  Result: Verified={result['verified']}, Distance={result['distance']:.4f}")
 
                 if result['verified'] and result['distance'] < best_distance:
                     best_distance = result['distance']
                     best_match = student_id
+                    print(f"  New best match: {student_id} with distance {best_distance:.4f}")
             except Exception as e:
+                print(f"  Error comparing with {student_id}: {e}")
                 continue
 
+        print(f"Completed {match_count} comparisons for face #{idx+1}")
         if best_match:
             matched_students.add(best_match)
             confidence = (1 - best_distance) * 100
+            print(f"MATCH FOUND: Student {best_match} with {confidence:.2f}% confidence")
             attendance_records.append({
                 'Student_ID': best_match,
                 'Timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
@@ -125,6 +150,14 @@ def process_attendance(photo_path: str, reference_faces: Dict[str, np.ndarray]) 
                 'Confidence': f"{confidence:.2f}%",
                 'Confidence_Value': confidence
             })
+        else:
+            print(f"NO MATCH FOUND for face #{idx+1}")
+    
+    print(f"\n===== FACE MATCHING COMPLETE =====")
+    print(f"Total faces detected: {len(detections)}")
+    print(f"Total matches found: {len(attendance_records)}")
+    print(f"Matched students: {list(matched_students)}")
+    print(f"===== END OF ATTENDANCE PROCESSING =====")
 
     return attendance_records
 

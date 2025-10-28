@@ -2,11 +2,13 @@ from fastapi import FastAPI, UploadFile, File, HTTPException, BackgroundTasks
 from fastapi.responses import JSONResponse, FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from typing import List, Optional
+from pydantic import BaseModel
 import os
 import time
 from datetime import datetime
 import uvicorn
 import shutil
+import aiofiles
 
 from attendance.attendance_logic import load_reference_images, process_attendance, save_attendance_to_csv
 from attendance.utils import save_uploaded_file, clean_temp_directory, get_csv_files
@@ -121,15 +123,16 @@ async def upload_class_photo(file: UploadFile = File(...)):
     filename_parts = file.filename.split('.')
     new_filename = f"{timestamp}_{filename_parts[0]}.{filename_parts[-1]}"
     
-    # Create a new UploadFile with the modified filename
-    modified_file = UploadFile(
-        filename=new_filename,
-        file=file.file,
-        content_type=file.content_type
-    )
+    # Read the file content first
+    contents = await file.read()
     
-    # Save file
-    file_path = await save_uploaded_file(modified_file, UPLOAD_DIR)
+    # Create the destination path
+    os.makedirs(UPLOAD_DIR, exist_ok=True)
+    file_path = os.path.join(UPLOAD_DIR, new_filename)
+    
+    # Write the file directly
+    async with aiofiles.open(file_path, 'wb') as out_file:
+        await out_file.write(contents)
     
     return JSONResponse(
         content={
@@ -140,11 +143,16 @@ async def upload_class_photo(file: UploadFile = File(...)):
     )
 
 
+class AttendanceRequest(BaseModel):
+    filename: str
+
 @app.post("/process-attendance")
 async def process_attendance_endpoint(
     background_tasks: BackgroundTasks,
-    filename: str
+    request: AttendanceRequest
 ):
+    # Extract filename from request body
+    filename = request.filename
     """
     Process attendance for a previously uploaded class photo
     

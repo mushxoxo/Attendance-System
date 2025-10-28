@@ -117,7 +117,7 @@ const UploadSection = ({
           </label>
           
           <button
-            onClick={onProcessAttendance}
+            onClick={handleProcessAttendance}
             disabled={!isClassPhotoUploaded || isProcessing}
             className={`px-4 py-2 rounded-md ${
               !isClassPhotoUploaded || isProcessing
