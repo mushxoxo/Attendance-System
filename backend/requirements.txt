@@ -1,0 +1,10 @@
+fastapi
+uvicorn
+deepface
+opencv-python-headless
+numpy
+pandas
+python-multipart
+aiofiles
+python-dateutil
+typing-extensions
