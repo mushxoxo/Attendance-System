@@ -1,22 +1,11 @@
 import React, { useState } from 'react';
-import { Menu, X, Users, Camera, FileSpreadsheet } from 'lucide-react';
+import { Menu, X, Users, Camera, FileSpreadsheet, Zap } from 'lucide-react';
 
 const Navbar = ({ currentStep, setCurrentStep, attendanceData }) => {
   const [isOpen, setIsOpen] = useState(false);
 
   const NavItem = ({ icon: Icon, label, step, disabled = false }) => {
-    let className = "flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors ";
-    
-    if (currentStep === step) {
-      className += "bg-blue-100 text-blue-700 ";
-    } else {
-      className += "text-gray-600 hover:text-blue-600 hover:bg-blue-50 ";
-    }
-    
-    if (disabled) {
-      className += "opacity-50 cursor-not-allowed";
-    }
-    
+    const isActive = currentStep === step;
     return (
       <button
         onClick={() => {
@@ -26,74 +15,134 @@ const Navbar = ({ currentStep, setCurrentStep, attendanceData }) => {
           }
         }}
         disabled={disabled}
-        className={className}
+        style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: '0.4rem',
+          padding: '0.4rem 0.85rem',
+          borderRadius: '0.55rem',
+          fontSize: '0.82rem',
+          fontWeight: isActive ? 600 : 500,
+          border: 'none',
+          cursor: disabled ? 'not-allowed' : 'pointer',
+          opacity: disabled ? 0.4 : 1,
+          transition: 'all 0.2s ease',
+          background: isActive
+            ? 'rgba(59,130,246,0.18)'
+            : 'transparent',
+          color: isActive ? '#93c5fd' : 'rgba(148,163,184,0.9)',
+          boxShadow: isActive ? '0 0 0 1px rgba(59,130,246,0.3)' : 'none',
+        }}
+        onMouseEnter={e => {
+          if (!disabled && !isActive) {
+            e.currentTarget.style.background = 'rgba(255,255,255,0.06)';
+            e.currentTarget.style.color = '#e2e8f0';
+          }
+        }}
+        onMouseLeave={e => {
+          if (!isActive) {
+            e.currentTarget.style.background = 'transparent';
+            e.currentTarget.style.color = 'rgba(148,163,184,0.9)';
+          }
+        }}
       >
-        <Icon size={16} />
+        <Icon size={14} />
         <span>{label}</span>
       </button>
     );
   };
 
   return (
-    <header className="sticky top-0 z-40 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <div className="container flex h-16 items-center">
-        <div className="mr-4 flex">
-          <div className="flex items-center gap-2">
-            <div className="rounded-full bg-gradient-to-r from-blue-600 to-indigo-600 p-1">
-              <Users className="h-6 w-6 text-white" />
-            </div>
-            <span className="hidden font-bold sm:inline-block text-xl">
-              <span className="gradient-text">AI</span> Attendance System
-            </span>
-            <span className="sm:hidden font-bold text-lg">
-              <span className="gradient-text">AI</span> Attendance
-            </span>
+    <header style={{
+      position: 'sticky',
+      top: 0,
+      zIndex: 50,
+      background: 'rgba(8,13,26,0.75)',
+      backdropFilter: 'blur(20px)',
+      WebkitBackdropFilter: 'blur(20px)',
+      borderBottom: '1px solid rgba(255,255,255,0.06)',
+      boxShadow: '0 1px 0 rgba(255,255,255,0.03)',
+    }}>
+      <div className="container" style={{ display: 'flex', alignItems: 'center', height: '3.75rem' }}>
+        {/* Logo */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginRight: '1.5rem' }}>
+          <div style={{
+            width: '2.2rem',
+            height: '2.2rem',
+            borderRadius: '0.65rem',
+            background: 'linear-gradient(135deg, #3b82f6 0%, #6366f1 100%)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            boxShadow: '0 4px 12px rgba(59,130,246,0.4)',
+            flexShrink: 0,
+          }}>
+            <Zap size={14} color="white" fill="white" />
           </div>
+          <span style={{ fontWeight: 700, fontSize: '1rem', color: '#f1f5f9', letterSpacing: '-0.01em', whiteSpace: 'nowrap' }}>
+            <span style={{
+              background: 'linear-gradient(135deg, #60a5fa 0%, #a78bfa 100%)',
+              WebkitBackgroundClip: 'text',
+              backgroundClip: 'text',
+              color: 'transparent',
+            }}>AI</span>
+            {' '}Attendance
+          </span>
         </div>
-        
-        <div className="flex-1" />
-        
-        {/* Desktop navigation */}
-        <nav className="hidden md:flex items-center gap-1">
-          <NavItem 
-            icon={Camera} 
-            label="Upload Photos" 
-            step="upload" 
-          />
-          <NavItem 
-            icon={FileSpreadsheet} 
-            label="Results" 
-            step="results" 
-            disabled={!attendanceData || attendanceData.length === 0} 
+
+        <div style={{ flex: 1 }} />
+
+        {/* Desktop Nav */}
+        <nav style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }} className="hidden md:flex">
+          <NavItem icon={Camera} label="Upload" step="upload" />
+          <NavItem
+            icon={FileSpreadsheet}
+            label="Results"
+            step="results"
+            disabled={!attendanceData || attendanceData.length === 0}
           />
         </nav>
-        
-        {/* Mobile menu button */}
+
+        {/* Mobile Menu Toggle */}
         <button
-          className="inline-flex md:hidden items-center justify-center rounded-md p-2 text-gray-500 hover:bg-gray-100 hover:text-gray-600 focus:outline-none"
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            width: '2rem',
+            height: '2rem',
+            borderRadius: '0.5rem',
+            border: '1px solid rgba(255,255,255,0.08)',
+            background: 'rgba(255,255,255,0.04)',
+            color: '#94a3b8',
+            cursor: 'pointer',
+          }}
+          className="md:hidden"
           onClick={() => setIsOpen(!isOpen)}
         >
-          <span className="sr-only">Open main menu</span>
-          {isOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
+          {isOpen ? <X size={16} /> : <Menu size={16} />}
         </button>
       </div>
-      
-      {/* Mobile navigation */}
+
+      {/* Mobile Dropdown */}
       {isOpen && (
-        <div className="md:hidden border-t border-gray-200 py-2 px-4 animate-fade-in-down">
-          <div className="flex flex-col space-y-1">
-            <NavItem 
-              icon={Camera} 
-              label="Upload Photos" 
-              step="upload" 
-            />
-            <NavItem 
-              icon={FileSpreadsheet} 
-              label="Results" 
-              step="results" 
-              disabled={!attendanceData || attendanceData.length === 0} 
-            />
-          </div>
+        <div
+          className="md:hidden animate-fade-in-down"
+          style={{
+            padding: '0.75rem 1.25rem',
+            borderTop: '1px solid rgba(255,255,255,0.05)',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '0.25rem',
+          }}
+        >
+          <NavItem icon={Camera} label="Upload Photos" step="upload" />
+          <NavItem
+            icon={FileSpreadsheet}
+            label="Results"
+            step="results"
+            disabled={!attendanceData || attendanceData.length === 0}
+          />
         </div>
       )}
     </header>

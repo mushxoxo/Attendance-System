@@ -1,0 +1,4 @@
+Student_ID,Timestamp,Status,Confidence
+103,2025-11-14 04:15:42,Present,52.91%
+102,2025-11-14 04:15:41,Present,49.98%
+101,2025-11-14 04:15:39,Present,49.35%

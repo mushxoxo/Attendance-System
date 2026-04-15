@@ -1,6 +1,8 @@
 import axios from 'axios';
 
-const API_URL = 'http://localhost:8000';
+// Use VITE_API_URL env var to point to Cloud Run (or any backend).
+// Falls back to localhost for local development.
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
 const api = axios.create({
   baseURL: API_URL,

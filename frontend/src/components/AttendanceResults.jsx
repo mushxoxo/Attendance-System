@@ -1,298 +1,263 @@
 import React, { useState, useEffect } from 'react';
-import { Download, FileSpreadsheet, User, CheckCircle, BarChart, Users, ArrowDown, Search } from 'lucide-react';
+import { Download, FileSpreadsheet, User, CheckCircle, BarChart2, Users, ChevronDown, Search } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from './ui/card';
 import { Button } from './ui/button';
 import toast from 'react-hot-toast';
 
+// Helper: determine confidence color
+const getConfColor = (confidence) => {
+  const v = parseFloat(confidence.replace('%', ''));
+  if (v >= 90) return { bar: '#22c55e', badge: { bg: 'rgba(34,197,94,0.12)', border: 'rgba(34,197,94,0.3)', text: '#4ade80' } };
+  if (v >= 70) return { bar: '#f59e0b', badge: { bg: 'rgba(245,158,11,0.12)', border: 'rgba(245,158,11,0.3)', text: '#fbbf24' } };
+  return { bar: '#ef4444', badge: { bg: 'rgba(239,68,68,0.12)', border: 'rgba(239,68,68,0.3)', text: '#f87171' } };
+};
+
+const StatCard = ({ label, value, icon: Icon, color, bgColor }) => (
+  <Card className="card-hover" style={{ display: 'flex', flexDirection: 'column' }}>
+    <div style={{ padding: '1.25rem 1.4rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem', flex: 1 }}>
+      <div>
+        <p style={{ fontSize: '0.72rem', fontWeight: 600, color: '#64748b', letterSpacing: '0.05em', textTransform: 'uppercase', marginBottom: '0.4rem' }}>
+          {label}
+        </p>
+        <p style={{ fontSize: '1.75rem', fontWeight: 800, color, lineHeight: 1 }}>{value}</p>
+      </div>
+      <div style={{
+        width: '2.75rem', height: '2.75rem', borderRadius: '0.75rem',
+        background: bgColor,
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        flexShrink: 0,
+      }}>
+        <Icon size={18} color={color} />
+      </div>
+    </div>
+  </Card>
+);
+
 const AttendanceResults = ({ attendanceData, csvFilename }) => {
   const [isDownloading, setIsDownloading] = useState(false);
-  const [showAllStudents, setShowAllStudents] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [stats, setStats] = useState({
-    totalStudents: 0,
-    presentCount: 0,
-    averageConfidence: 0,
-    highConfidenceCount: 0,
-    mediumConfidenceCount: 0,
-    lowConfidenceCount: 0
-  });
+  const [showAll, setShowAll] = useState(false);
+  const [query, setQuery] = useState('');
+  const [stats, setStats] = useState({ total: 0, present: 0, avgConf: 0, high: 0, medium: 0, low: 0 });
+
+  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
   useEffect(() => {
-    if (attendanceData && attendanceData.length > 0) {
-      // Calculate statistics
-      const totalConfidence = attendanceData.reduce((sum, record) => {
-        const confidenceValue = parseFloat(record.Confidence.replace('%', ''));
-        return sum + confidenceValue;
-      }, 0);
-
-      const highConfidence = attendanceData.filter(record => 
-        parseFloat(record.Confidence.replace('%', '')) >= 90
-      ).length;
-
-      const mediumConfidence = attendanceData.filter(record => {
-        const conf = parseFloat(record.Confidence.replace('%', ''));
-        return conf >= 70 && conf < 90;
-      }).length;
-
-      const lowConfidence = attendanceData.filter(record => 
-        parseFloat(record.Confidence.replace('%', '')) < 70
-      ).length;
-
-      setStats({
-        totalStudents: attendanceData.length,
-        presentCount: attendanceData.length,
-        averageConfidence: (totalConfidence / attendanceData.length).toFixed(2),
-        highConfidenceCount: highConfidence,
-        mediumConfidenceCount: mediumConfidence,
-        lowConfidenceCount: lowConfidence
-      });
-    }
+    if (!attendanceData?.length) return;
+    const vals = attendanceData.map(r => parseFloat(r.Confidence.replace('%', '')));
+    const avg = (vals.reduce((a, b) => a + b, 0) / vals.length).toFixed(1);
+    setStats({
+      total: attendanceData.length,
+      present: attendanceData.length,
+      avgConf: avg,
+      high:   vals.filter(v => v >= 90).length,
+      medium: vals.filter(v => v >= 70 && v < 90).length,
+      low:    vals.filter(v => v < 70).length,
+    });
   }, [attendanceData]);
 
-  const handleDownloadCSV = async () => {
+  const handleDownload = async () => {
     if (!csvFilename) return;
-    
     setIsDownloading(true);
-    const loadingToast = toast.loading('Downloading attendance CSV...');
-    
+    const t = toast.loading('Downloading CSV...');
     try {
-      // Use direct URL for downloading the file
-      const url = `http://localhost:8000/download-csv/${encodeURIComponent(csvFilename)}`;
-      
-      // Create a link element and trigger download
       const link = document.createElement('a');
-      link.href = url;
+      link.href = `${API_URL}/download-csv/${encodeURIComponent(csvFilename)}`;
       link.setAttribute('download', csvFilename);
       document.body.appendChild(link);
       link.click();
-      
-      // Clean up
-      setTimeout(() => {
-        document.body.removeChild(link);
-        window.URL.revokeObjectURL(url);
-      }, 100);
-      
-      toast.success('CSV download initiated', { id: loadingToast });
-    } catch (err) {
-      toast.error('Failed to download CSV. Please try again.', { id: loadingToast });
-      console.error('Error downloading CSV:', err);
+      setTimeout(() => document.body.removeChild(link), 100);
+      toast.success('Download started!', { id: t });
+    } catch (e) {
+      toast.error('Download failed', { id: t });
     } finally {
       setIsDownloading(false);
     }
   };
 
-  // Helper function to determine confidence color
-  const getConfidenceColor = (confidence) => {
-    const value = parseFloat(confidence.replace('%', ''));
-    if (value >= 90) return 'bg-green-500';
-    if (value >= 70) return 'bg-amber-500';
-    return 'bg-red-500';
-  };
+  const filtered = attendanceData?.filter(r =>
+    r.Student_ID.toLowerCase().includes(query.toLowerCase())
+  ) || [];
+  const displayed = showAll ? filtered : filtered.slice(0, 5);
 
-  // Filter students based on search query
-  const filteredStudents = attendanceData?.filter(record => 
-    record.Student_ID.toLowerCase().includes(searchQuery.toLowerCase())
-  );
-
-  // Display only the first 5 students unless showAllStudents is true
-  const displayedStudents = showAllStudents 
-    ? filteredStudents 
-    : filteredStudents?.slice(0, 5);
-
-  if (!attendanceData || attendanceData.length === 0) {
-    return null;
-  }
+  if (!attendanceData?.length) return null;
 
   return (
     <div className="space-y-6 animate-fade-in-up">
-      {/* Header Card */}
-      <Card className="bg-gradient-to-r from-blue-500 to-indigo-600 text-white">
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <div className="flex items-center gap-2">
-            <FileSpreadsheet className="h-6 w-6" />
-            <CardTitle className="text-xl font-bold">Attendance Results</CardTitle>
-          </div>
-          <Button 
-            variant="outline" 
-            size="sm" 
-            onClick={handleDownloadCSV}
-            disabled={isDownloading}
-            className="bg-white text-blue-600 hover:bg-blue-50 border-none"
-          >
-            <Download className="mr-2 h-4 w-4" />
-            <span className="hidden sm:inline">{isDownloading ? 'Downloading...' : 'Download CSV'}</span>
-            <span className="sm:hidden">CSV</span>
-          </Button>
-        </CardHeader>
-        <CardContent>
-          <p className="text-blue-100">
-            Found {stats.totalStudents} students in the class photo
-          </p>
-        </CardContent>
-      </Card>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card className="card-hover">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-gray-500">Total Students</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center justify-between">
-              <div className="text-2xl font-bold">{stats.totalStudents}</div>
-              <div className="rounded-full bg-blue-100 p-2">
-                <Users className="h-4 w-4 text-blue-600" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        
-        <Card className="card-hover">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-gray-500">Present</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center justify-between">
-              <div className="text-2xl font-bold text-green-600">{stats.presentCount}</div>
-              <div className="rounded-full bg-green-100 p-2">
-                <CheckCircle className="h-4 w-4 text-green-600" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        
-        <Card className="card-hover">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-gray-500">Avg. Confidence</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center justify-between">
-              <div className="text-2xl font-bold text-indigo-600">{stats.averageConfidence}%</div>
-              <div className="rounded-full bg-indigo-100 p-2">
-                <BarChart className="h-4 w-4 text-indigo-600" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+      {/* Header Banner */}
+      <div style={{
+        borderRadius: '1rem',
+        background: 'linear-gradient(135deg, rgba(37,99,235,0.25) 0%, rgba(99,102,241,0.2) 50%, rgba(147,51,234,0.15) 100%)',
+        border: '1px solid rgba(99,102,241,0.25)',
+        padding: '1.5rem 1.75rem',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        gap: '1rem',
+        flexWrap: 'wrap',
+        backdropFilter: 'blur(12px)',
+        boxShadow: '0 8px 32px rgba(0,0,0,0.3)',
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+          <div style={{
+            width: '2.75rem', height: '2.75rem', borderRadius: '0.75rem',
+            background: 'linear-gradient(135deg, #3b82f6, #6366f1)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            boxShadow: '0 4px 12px rgba(59,130,246,0.4)',
+          }}>
+            <FileSpreadsheet size={18} color="white" />
+          </div>
+          <div>
+            <h2 style={{ fontSize: '1.1rem', fontWeight: 700, color: '#f1f5f9', lineHeight: 1.2 }}>
+              Attendance Results
+            </h2>
+            <p style={{ fontSize: '0.78rem', color: 'rgba(147,197,253,0.8)', marginTop: '0.15rem' }}>
+              {stats.total} student{stats.total !== 1 ? 's' : ''} identified in the class photo
+            </p>
+          </div>
+        </div>
+        <Button variant="outline" onClick={handleDownload} disabled={isDownloading} style={{ borderColor: 'rgba(99,102,241,0.4)', color: '#c4b5fd' }}>
+          <Download size={14} style={{ marginRight: '0.4rem' }} />
+          <span>{isDownloading ? 'Downloading...' : 'Download CSV'}</span>
+        </Button>
+      </div>
+
+      {/* Stats Row */}
+      <div className="grid grid-cols-1 md:grid-cols-3" style={{ gap: '1rem' }}>
+        <StatCard label="Total Detected" value={stats.total}   icon={Users}       color="#60a5fa" bgColor="rgba(59,130,246,0.12)" />
+        <StatCard label="Present"        value={stats.present} icon={CheckCircle} color="#4ade80" bgColor="rgba(34,197,94,0.12)" />
+        <StatCard label="Avg. Confidence" value={`${stats.avgConf}%`} icon={BarChart2} color="#c084fc" bgColor="rgba(168,85,247,0.12)" />
       </div>
 
       {/* Confidence Distribution */}
       <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Confidence Distribution</CardTitle>
-          <CardDescription>Recognition confidence levels across detected students</CardDescription>
+        <CardHeader style={{ paddingBottom: '0.75rem' }}>
+          <CardTitle style={{ fontSize: '0.9rem', color: '#e2e8f0' }}>Confidence Distribution</CardTitle>
+          <CardDescription>Recognition confidence levels across all detected students</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="flex items-center gap-1 h-6 mb-2">
-            <div 
-              className="bg-green-500 h-full rounded-l-full transition-all duration-500" 
-              style={{ width: `${(stats.highConfidenceCount / stats.totalStudents) * 100}%` }}
-              title={`High confidence: ${stats.highConfidenceCount} students`}
-            ></div>
-            <div 
-              className="bg-amber-500 h-full transition-all duration-500" 
-              style={{ width: `${(stats.mediumConfidenceCount / stats.totalStudents) * 100}%` }}
-              title={`Medium confidence: ${stats.mediumConfidenceCount} students`}
-            ></div>
-            <div 
-              className="bg-red-500 h-full rounded-r-full transition-all duration-500" 
-              style={{ width: `${(stats.lowConfidenceCount / stats.totalStudents) * 100}%` }}
-              title={`Low confidence: ${stats.lowConfidenceCount} students`}
-            ></div>
+          {/* Bar */}
+          <div style={{ display: 'flex', height: '8px', borderRadius: '9999px', overflow: 'hidden', background: 'rgba(255,255,255,0.04)', gap: '2px', marginBottom: '0.875rem' }}>
+            {stats.total > 0 && (<>
+              <div style={{ flex: stats.high, background: '#22c55e', transition: 'flex 0.6s ease', borderRadius: stats.medium === 0 && stats.low === 0 ? '9999px' : '9999px 0 0 9999px' }} title={`High: ${stats.high}`} />
+              {stats.medium > 0 && <div style={{ flex: stats.medium, background: '#f59e0b', transition: 'flex 0.6s ease' }} title={`Medium: ${stats.medium}`} />}
+              {stats.low > 0 && <div style={{ flex: stats.low, background: '#ef4444', transition: 'flex 0.6s ease', borderRadius: stats.high === 0 && stats.medium === 0 ? '9999px' : '0 9999px 9999px 0' }} title={`Low: ${stats.low}`} />}
+            </>)}
           </div>
-          <div className="flex flex-wrap justify-between text-xs text-gray-500 mt-1">
-            <div className="flex items-center gap-1 mr-2">
-              <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-              <span>High (≥90%): {stats.highConfidenceCount}</span>
-            </div>
-            <div className="flex items-center gap-1 mr-2">
-              <div className="w-2 h-2 bg-amber-500 rounded-full"></div>
-              <span>Medium (70-89%): {stats.mediumConfidenceCount}</span>
-            </div>
-            <div className="flex items-center gap-1">
-              <div className="w-2 h-2 bg-red-500 rounded-full"></div>
-              <span>Low (&lt;70%): {stats.lowConfidenceCount}</span>
-            </div>
+          {/* Legend */}
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem' }}>
+            {[
+              { color: '#22c55e', label: 'High (≥90%)', count: stats.high },
+              { color: '#f59e0b', label: 'Medium (70-89%)', count: stats.medium },
+              { color: '#ef4444', label: 'Low (<70%)', count: stats.low },
+            ].map(({ color, label, count }) => (
+              <div key={label} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.75rem', color: '#64748b' }}>
+                <div style={{ width: '0.5rem', height: '0.5rem', borderRadius: '50%', background: color }} />
+                <span>{label}: <strong style={{ color: '#94a3b8' }}>{count}</strong></span>
+              </div>
+            ))}
           </div>
         </CardContent>
       </Card>
 
       {/* Students List */}
       <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Present Students</CardTitle>
-          <div className="relative mt-2">
-            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500" />
+        <CardHeader style={{ paddingBottom: '0.5rem' }}>
+          <CardTitle style={{ fontSize: '0.9rem', color: '#e2e8f0', marginBottom: '0.75rem' }}>Present Students</CardTitle>
+          {/* Search */}
+          <div style={{ position: 'relative' }}>
+            <Search size={14} style={{ position: 'absolute', top: '50%', left: '0.75rem', transform: 'translateY(-50%)', color: '#475569' }} />
             <input
               type="text"
-              placeholder="Search students..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full rounded-md border border-gray-200 pl-9 py-2 text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+              placeholder="Search by student ID..."
+              value={query}
+              onChange={e => setQuery(e.target.value)}
+              className="search-input"
             />
           </div>
         </CardHeader>
-        <CardContent className="space-y-3">
-          {displayedStudents.length > 0 ? (
-            displayedStudents.map((record, index) => (
-              <div 
-                key={index} 
-                className="p-3 bg-white border border-gray-100 rounded-lg shadow-sm hover:shadow transition-all duration-200 flex flex-col sm:flex-row sm:items-center justify-between gap-2"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="bg-blue-100 text-blue-800 p-2 rounded-full">
-                    <User className="h-4 w-4" />
+
+        <CardContent style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+          {displayed.length > 0 ? displayed.map((record, i) => {
+            const { bar, badge } = getConfColor(record.Confidence);
+            return (
+              <div key={i} className="student-row">
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                  <div style={{
+                    width: '2.2rem', height: '2.2rem', borderRadius: '50%',
+                    background: 'rgba(59,130,246,0.12)',
+                    border: '1px solid rgba(59,130,246,0.2)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    flexShrink: 0,
+                  }}>
+                    <User size={14} color="#93c5fd" />
                   </div>
                   <div>
-                    <h4 className="font-medium text-gray-900">{record.Student_ID}</h4>
-                    <p className="text-xs text-gray-500">{record.Timestamp}</p>
+                    <p style={{ fontWeight: 600, fontSize: '0.875rem', color: '#e2e8f0' }}>{record.Student_ID}</p>
+                    <p style={{ fontSize: '0.7rem', color: '#475569' }}>{record.Timestamp}</p>
                   </div>
                 </div>
-                
-                <div className="flex items-center gap-3">
-                  <span className="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                  <span style={{
+                    padding: '0.2rem 0.6rem',
+                    borderRadius: '9999px',
+                    fontSize: '0.68rem',
+                    fontWeight: 600,
+                    background: 'rgba(34,197,94,0.12)',
+                    border: '1px solid rgba(34,197,94,0.25)',
+                    color: '#4ade80',
+                  }}>
                     {record.Status}
                   </span>
-                  
-                  <div className="flex items-center gap-1">
-                    <div className="w-16 sm:w-24 bg-gray-200 rounded-full h-2">
-                      <div 
-                        className={`${getConfidenceColor(record.Confidence)} h-2 rounded-full transition-all duration-500`}
-                        style={{ width: record.Confidence }}
-                      ></div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                    <div style={{ width: '4.5rem', height: '5px', background: 'rgba(255,255,255,0.06)', borderRadius: '9999px', overflow: 'hidden' }}>
+                      <div style={{ height: '100%', width: record.Confidence, background: bar, borderRadius: '9999px', transition: 'width 0.6s ease', boxShadow: `0 0 6px ${bar}` }} />
                     </div>
-                    <span className="text-xs font-medium">{record.Confidence}</span>
+                    <span style={{ fontSize: '0.72rem', fontWeight: 600, color: '#94a3b8', minWidth: '2.5rem' }}>{record.Confidence}</span>
                   </div>
                 </div>
               </div>
-            ))
-          ) : (
-            <div className="text-center py-4 text-gray-500">
-              No students found matching your search
+            );
+          }) : (
+            <div style={{ textAlign: 'center', padding: '2rem', color: '#475569', fontSize: '0.85rem' }}>
+              No students match your search
             </div>
           )}
-          
-          {/* Show more/less button */}
-          {filteredStudents.length > 5 && (
-            <Button 
-              variant="outline"
-              onClick={() => setShowAllStudents(!showAllStudents)}
-              className="w-full mt-2"
+
+          {filtered.length > 5 && (
+            <button
+              onClick={() => setShowAll(!showAll)}
+              style={{
+                width: '100%',
+                marginTop: '0.5rem',
+                padding: '0.6rem',
+                borderRadius: '0.6rem',
+                border: '1px solid rgba(255,255,255,0.07)',
+                background: 'rgba(255,255,255,0.03)',
+                color: '#64748b',
+                fontSize: '0.8rem',
+                fontWeight: 500,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '0.4rem',
+                transition: 'all 0.2s',
+              }}
+              onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.06)'; e.currentTarget.style.color = '#94a3b8'; }}
+              onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.03)'; e.currentTarget.style.color = '#64748b'; }}
             >
-              <ArrowDown className={`mr-2 h-4 w-4 transition-transform duration-300 ${showAllStudents ? 'rotate-180' : ''}`} />
-              <span>{showAllStudents ? 'Show Less' : `Show All (${filteredStudents.length})`}</span>
-            </Button>
+              <ChevronDown size={14} style={{ transform: showAll ? 'rotate(180deg)' : 'none', transition: 'transform 0.3s' }} />
+              {showAll ? 'Show Less' : `Show All (${filtered.length})`}
+            </button>
           )}
         </CardContent>
-        <CardFooter className="flex justify-center border-t pt-4">
-          <Button 
-            variant="gradient"
-            onClick={handleDownloadCSV}
-            disabled={isDownloading}
-            className="w-full sm:w-auto"
-          >
-            <Download className="mr-2 h-4 w-4" />
-            <span>{isDownloading ? 'Downloading...' : 'Download Attendance CSV'}</span>
+
+        <CardFooter style={{ borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: '1rem', justifyContent: 'center' }}>
+          <Button variant="gradient" onClick={handleDownload} disabled={isDownloading} style={{ minWidth: '14rem' }}>
+            <Download size={14} style={{ marginRight: '0.5rem' }} />
+            {isDownloading ? 'Downloading...' : 'Download Attendance CSV'}
           </Button>
         </CardFooter>
       </Card>

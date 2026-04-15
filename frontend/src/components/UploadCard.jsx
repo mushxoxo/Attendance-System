@@ -1,5 +1,5 @@
-import React from 'react';
-import { Upload, Image, CheckCircle } from 'lucide-react';
+import React, { useState } from 'react';
+import { Upload, Image as ImageIcon, CheckCircle, Sparkles, X } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from './ui/card';
 import { Button } from './ui/button';
 
@@ -16,39 +16,141 @@ const UploadCard = ({
   inputRef,
   onChange,
   multiple = false,
-  accept = "image/*"
+  accept = "image/*",
+  onLoadSample,
+  sampleLabel,
 }) => {
+  const [isDragOver, setIsDragOver] = useState(false);
+
   const handleDragOver = (e) => {
     e.preventDefault();
     e.stopPropagation();
+    setIsDragOver(true);
+  };
+
+  const handleDragLeave = (e) => {
+    e.preventDefault();
+    setIsDragOver(false);
   };
 
   const handleDrop = (e) => {
     e.preventDefault();
     e.stopPropagation();
-    if (onDrop) {
-      onDrop(e);
-    }
+    setIsDragOver(false);
+    if (onDrop) onDrop(e);
   };
 
+  const hasContent = files?.length > 0 || preview;
+
   return (
-    <Card className="h-full card-hover">
-      <CardHeader>
-        <div className="flex items-center gap-2">
-          <div className="rounded-md bg-blue-100 p-2">
-            <Icon className="h-5 w-5 text-blue-600" />
+    <Card className="h-full card-hover" style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+      <CardHeader style={{ paddingBottom: '0.75rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.4rem' }}>
+          <div style={{
+            width: '2.5rem',
+            height: '2.5rem',
+            borderRadius: '0.65rem',
+            background: 'linear-gradient(135deg, rgba(59,130,246,0.2) 0%, rgba(99,102,241,0.2) 100%)',
+            border: '1px solid rgba(99,102,241,0.3)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            flexShrink: 0,
+          }}>
+            <Icon size={18} color="#93c5fd" />
           </div>
-          <CardTitle>{title}</CardTitle>
+          <div style={{ flex: 1 }}>
+            <CardTitle style={{ fontSize: '1rem', color: '#f1f5f9', marginBottom: '0.15rem' }}>
+              {title}
+            </CardTitle>
+          </div>
+          {isUploaded && (
+            <div style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '0.3rem',
+              padding: '0.2rem 0.6rem',
+              borderRadius: '9999px',
+              background: 'rgba(34,197,94,0.12)',
+              border: '1px solid rgba(34,197,94,0.3)',
+              color: '#4ade80',
+              fontSize: '0.7rem',
+              fontWeight: 600,
+            }}>
+              <CheckCircle size={10} />
+              <span>Uploaded</span>
+            </div>
+          )}
         </div>
-        <CardDescription>{description}</CardDescription>
+        <CardDescription style={{ fontSize: '0.8rem', color: '#64748b', lineHeight: '1.5' }}>
+          {description}
+        </CardDescription>
       </CardHeader>
-      <CardContent className="space-y-4">
+
+      <CardContent style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '0.75rem', paddingTop: 0 }}>
+
+        {/* Sample Data Banner */}
+        {onLoadSample && (
+          <button
+            onClick={onLoadSample}
+            style={{
+              width: '100%',
+              padding: '0.6rem 0.875rem',
+              borderRadius: '0.65rem',
+              background: 'linear-gradient(135deg, rgba(99,102,241,0.12) 0%, rgba(168,85,247,0.08) 100%)',
+              border: '1px solid rgba(99,102,241,0.25)',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '0.5rem',
+              color: '#a78bfa',
+              fontSize: '0.8rem',
+              fontWeight: 600,
+              transition: 'all 0.25s ease',
+              textAlign: 'center',
+            }}
+            onMouseEnter={e => {
+              e.currentTarget.style.borderColor = 'rgba(99,102,241,0.5)';
+              e.currentTarget.style.background = 'linear-gradient(135deg, rgba(99,102,241,0.2) 0%, rgba(168,85,247,0.14) 100%)';
+              e.currentTarget.style.boxShadow = '0 4px 16px rgba(99,102,241,0.15)';
+            }}
+            onMouseLeave={e => {
+              e.currentTarget.style.borderColor = 'rgba(99,102,241,0.25)';
+              e.currentTarget.style.background = 'linear-gradient(135deg, rgba(99,102,241,0.12) 0%, rgba(168,85,247,0.08) 100%)';
+              e.currentTarget.style.boxShadow = 'none';
+            }}
+          >
+            <Sparkles size={14} />
+            <span>{sampleLabel || 'Load Sample Images'}</span>
+          </button>
+        )}
+
         {/* Drop Zone */}
         <div
           onClick={() => inputRef.current?.click()}
           onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
           onDrop={handleDrop}
-          className={`border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-all duration-300 ${files?.length || preview ? "border-blue-400 bg-blue-50" : "border-gray-300 hover:border-blue-300 hover:bg-blue-50/30"}`}
+          style={{
+            flex: 1,
+            border: `2px dashed ${isDragOver ? 'rgba(99,102,241,0.7)' : hasContent ? 'rgba(59,130,246,0.4)' : 'rgba(255,255,255,0.1)'}`,
+            borderRadius: '0.85rem',
+            padding: '1.5rem',
+            textAlign: 'center',
+            cursor: 'pointer',
+            transition: 'all 0.3s ease',
+            background: isDragOver
+              ? 'rgba(99,102,241,0.08)'
+              : hasContent
+              ? 'rgba(59,130,246,0.04)'
+              : 'rgba(255,255,255,0.02)',
+            boxShadow: isDragOver ? '0 0 0 4px rgba(99,102,241,0.1), inset 0 0 24px rgba(99,102,241,0.04)' : 'none',
+            minHeight: '9rem',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
         >
           <input
             ref={inputRef}
@@ -56,75 +158,100 @@ const UploadCard = ({
             multiple={multiple}
             accept={accept}
             onChange={onChange}
-            className="hidden"
+            style={{ display: 'none' }}
           />
 
           {preview ? (
-            <div className="flex flex-col items-center">
-              <div className="relative w-full max-h-48 flex items-center justify-center mb-2">
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.5rem', width: '100%' }}>
+              <div style={{ position: 'relative', width: '100%', display: 'flex', justifyContent: 'center' }}>
                 <img
                   src={preview}
                   alt="Preview"
-                  className="max-h-48 rounded-md object-contain drop-shadow-sm"
+                  style={{ maxHeight: '10rem', borderRadius: '0.5rem', objectFit: 'contain', boxShadow: '0 4px 20px rgba(0,0,0,0.5)' }}
                 />
               </div>
-              <p className="text-sm text-gray-500 mt-2">Click to change image</p>
+              <span style={{ fontSize: '0.72rem', color: '#64748b' }}>Click to change</span>
             </div>
           ) : files?.length > 0 ? (
-            <div className="flex flex-col items-center">
-              <div className="rounded-full bg-blue-100 p-3 mb-2">
-                <CheckCircle className="h-6 w-6 text-blue-600" />
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.5rem' }}>
+              <div style={{
+                width: '3rem', height: '3rem', borderRadius: '50%',
+                background: 'rgba(34,197,94,0.12)',
+                border: '1px solid rgba(34,197,94,0.3)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}>
+                <CheckCircle size={20} color="#4ade80" />
               </div>
-              <p className="text-blue-600 font-medium">{files.length} file(s) selected</p>
-              <p className="text-sm text-gray-500 mt-1">Click to change selection</p>
+              <span style={{ color: '#93c5fd', fontWeight: 600, fontSize: '0.875rem' }}>
+                {files.length} file{files.length > 1 ? 's' : ''} selected
+              </span>
+              <span style={{ fontSize: '0.7rem', color: '#64748b' }}>Click to change</span>
             </div>
           ) : (
-            <div className="flex flex-col items-center">
-              <div className="rounded-full bg-gray-100 p-3 mb-2">
-                {multiple ? <Upload className="h-6 w-6 text-gray-400" /> : <Image className="h-6 w-6 text-gray-400" />}
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.5rem' }}>
+              <div style={{
+                width: '3rem', height: '3rem', borderRadius: '50%',
+                background: 'rgba(255,255,255,0.05)',
+                border: '1px solid rgba(255,255,255,0.1)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}>
+                {multiple ? <Upload size={18} color="#64748b" /> : <ImageIcon size={18} color="#64748b" />}
               </div>
-              <p className="text-gray-600 font-medium">Drag & drop {multiple ? 'files' : 'file'} here</p>
-              <p className="text-sm text-gray-500 mt-1">or click to browse</p>
+              <span style={{ color: '#94a3b8', fontWeight: 500, fontSize: '0.85rem' }}>
+                Drop {multiple ? 'files' : 'a file'} here
+              </span>
+              <span style={{ fontSize: '0.72rem', color: '#475569' }}>or click to browse</span>
             </div>
           )}
         </div>
 
-        {/* File List */}
+        {/* File list for multi-select */}
         {files?.length > 0 && multiple && (
-          <div className="max-h-32 overflow-y-auto bg-gray-50 rounded-md p-2 border border-gray-200">
-            <ul className="text-xs text-gray-600 space-y-1">
-              {files.map((file, index) => (
-                <li key={index} className="truncate px-2 py-1 rounded hover:bg-gray-100">
-                  {file.name}
-                </li>
-              ))}
-            </ul>
+          <div style={{
+            maxHeight: '6rem',
+            overflowY: 'auto',
+            background: 'rgba(0,0,0,0.2)',
+            borderRadius: '0.5rem',
+            padding: '0.4rem',
+            border: '1px solid rgba(255,255,255,0.06)',
+          }}>
+            {files.map((file, i) => (
+              <div key={i} style={{
+                fontSize: '0.72rem',
+                color: '#94a3b8',
+                padding: '0.2rem 0.4rem',
+                borderRadius: '0.25rem',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+              }}>{file.name}</div>
+            ))}
           </div>
         )}
       </CardContent>
-      <CardFooter className="flex justify-center pt-2">
+
+      <CardFooter style={{ paddingTop: '0.5rem' }}>
         <Button
           onClick={onUpload}
           disabled={!files?.length || isUploading}
           variant="gradient"
-          className="w-full"
+          style={{ width: '100%' }}
         >
           {isUploading ? (
-            <div className="flex items-center justify-center gap-2">
-              <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
-              <span>Uploading...</span>
-            </div>
+            <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <span style={{
+                width: '1rem', height: '1rem', borderRadius: '50%',
+                border: '2px solid rgba(255,255,255,0.3)',
+                borderTopColor: 'white',
+                animation: 'spin 0.8s linear infinite',
+                display: 'inline-block',
+              }} />
+              Uploading...
+            </span>
           ) : (
-            <span>Upload {multiple ? 'Photos' : 'Photo'}</span>
+            <span>Upload {multiple ? 'Reference Photos' : 'Class Photo'}</span>
           )}
         </Button>
-        
-        {isUploaded && (
-          <div className="absolute -bottom-2 left-0 right-0 mx-auto w-3/4 transform translate-y-1/2 bg-green-100 text-green-800 text-xs font-medium px-3 py-1 rounded-full flex items-center justify-center gap-1 shadow-sm animate-fade-in-up">
-            <CheckCircle className="h-3 w-3" />
-            <span>Uploaded successfully</span>
-          </div>
-        )}
       </CardFooter>
     </Card>
   );
