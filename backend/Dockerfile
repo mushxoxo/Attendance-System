@@ -17,6 +17,11 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
+# Pre-download the VGG-Face model weights during build so the container
+# starts instantly without downloading ~600MB at runtime on Cloud Run.
+RUN python -c "from deepface.models.facial_recognition import VGGFace; VGGFace.loadModel()" || \
+    python -c "from deepface import DeepFace; DeepFace.build_model('VGG-Face')" || true
+
 # Copy app code
 COPY . .
 

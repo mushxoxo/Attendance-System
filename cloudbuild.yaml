@@ -38,6 +38,9 @@ steps:
       - '300'
       - '--concurrency'
       - '10'
+      - '--startup-cpu-boost'
+      - '--min-instances'
+      - '0'
 
 images:
   - 'gcr.io/$PROJECT_ID/attendance-backend'

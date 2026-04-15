@@ -3,10 +3,12 @@ import numpy as np
 import pandas as pd
 from datetime import datetime
 import os
-from deepface import DeepFace
 import csv
 import shutil
 from typing import Dict, List, Any, Tuple
+
+# DeepFace is imported lazily inside functions to avoid slow startup.
+# Importing it at module level causes Cloud Run to time out during container init.
 
 
 def load_reference_images(reference_folder: str) -> Dict[str, np.ndarray]:
@@ -29,6 +31,7 @@ def load_reference_images(reference_folder: str) -> Dict[str, np.ndarray]:
             student_id = os.path.splitext(filename)[0]
             filepath = os.path.join(reference_folder, filename)
             try:
+                from deepface import DeepFace  # lazy import
                 img = cv2.imread(filepath)
                 if img is not None:
                     detections = DeepFace.extract_faces(
@@ -77,6 +80,7 @@ def process_attendance(photo_path: str, reference_faces: Dict[str, np.ndarray]) 
 
     # Detect faces in class photo
     try:
+        from deepface import DeepFace  # lazy import
         print("Detecting faces in class photo...")
         detections = DeepFace.extract_faces(
             img_path=photo_path,
@@ -119,6 +123,7 @@ def process_attendance(photo_path: str, reference_faces: Dict[str, np.ndarray]) 
                 continue
 
             try:
+                from deepface import DeepFace  # lazy import
                 print(f"  Comparing with student ID: {student_id}")
                 result = DeepFace.verify(
                     img1_path=face,
