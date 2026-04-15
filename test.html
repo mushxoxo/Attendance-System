@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Attendance API Test</title>
+  <style>
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 20px;
+      line-height: 1.6;
+    }
+    h1 {
+      color: #3b82f6;
+    }
+    button {
+      background-color: #3b82f6;
+      color: white;
+      border: none;
+      padding: 10px 15px;
+      border-radius: 5px;
+      cursor: pointer;
+      font-weight: 500;
+    }
+    button:hover {
+      background-color: #2563eb;
+    }
+    pre {
+      background-color: #f3f4f6;
+      padding: 15px;
+      border-radius: 5px;
+      overflow-x: auto;
+      margin-top: 20px;
+    }
+    .status {
+      margin-top: 20px;
+      padding: 10px;
+      border-radius: 5px;
+    }
+    .success {
+      background-color: #d1fae5;
+      color: #065f46;
+    }
+    .error {
+      background-color: #fee2e2;
+      color: #b91c1c;
+    }
+    .loading {
+      background-color: #dbeafe;
+      color: #1e40af;
+    }
+    .progress-container {
+      width: 100%;
+      background-color: #e5e7eb;
+      border-radius: 9999px;
+      margin-top: 10px;
+    }
+    .progress-bar {
+      height: 10px;
+      background-color: #3b82f6;
+      border-radius: 9999px;
+      transition: width 0.3s ease;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 20px;
+    }
+    th, td {
+      padding: 10px;
+      text-align: left;
+      border-bottom: 1px solid #e5e7eb;
+    }
+    th {
+      background-color: #f9fafb;
+      font-weight: 600;
+    }
+    tr:nth-child(even) {
+      background-color: #f9fafb;
+    }
+  </style>
+</head>
+<body>
+  <h1>DeepFace Attendance API Test</h1>
+  <p>This page tests the attendance processing API with the uploaded class photo.</p>
+  
+  <button id="processBtn">Process Attendance</button>
+  
+  <div id="status" class="status"></div>
+  <div class="progress-container" id="progressContainer" style="display: none;">
+    <div class="progress-bar" id="progressBar" style="width: 0%"></div>
+  </div>
+  
+  <div id="resultsContainer" style="display: none;">
+    <h2>Results:</h2>
+    <div id="summary"></div>
+    <table id="resultsTable">
+      <thead>
+        <tr>
+          <th>Student ID</th>
+          <th>Status</th>
+          <th>Confidence</th>
+          <th>Timestamp</th>
+        </tr>
+      </thead>
+      <tbody id="resultsBody"></tbody>
+    </table>
+  </div>
+  
+  <pre id="rawOutput"></pre>
+
+  <script>
+    document.getElementById('processBtn').addEventListener('click', async () => {
+      const statusEl = document.getElementById('status');
+      const progressContainer = document.getElementById('progressContainer');
+      const progressBar = document.getElementById('progressBar');
+      const resultsContainer = document.getElementById('resultsContainer');
+      const summaryEl = document.getElementById('summary');
+      const resultsBody = document.getElementById('resultsBody');
+      const rawOutput = document.getElementById('rawOutput');
+      
+      // Reset UI
+      statusEl.className = 'status loading';
+      statusEl.textContent = 'Processing attendance...';
+      progressContainer.style.display = 'block';
+      resultsContainer.style.display = 'none';
+      rawOutput.textContent = '';
+      
+      // Simulate progress
+      let progress = 0;
+      const progressInterval = setInterval(() => {
+        progress += 5;
+        if (progress > 95) clearInterval(progressInterval);
+        progressBar.style.width = `${Math.min(progress, 95)}%`;
+      }, 200);
+      
+      try {
+        const response = await fetch('http://localhost:8000/process-attendance', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            filename: '20251029_015742_Screenshot 2025-10-25 214733.png'
+          })
+        });
+        
+        if (!response.ok) {
+          throw new Error(`HTTP error! Status: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        
+        // Complete progress
+        clearInterval(progressInterval);
+        progressBar.style.width = '100%';
+        
+        // Show success
+        statusEl.className = 'status success';
+        statusEl.textContent = `Success! Found ${data.records.length} students in the photo.`;
+        
+        // Display results
+        resultsContainer.style.display = 'block';
+        summaryEl.innerHTML = `
+          <p><strong>CSV Filename:</strong> ${data.csv_filename}</p>
+          <p><strong>Present Students:</strong> ${data.records.length}</p>
+        `;
+        
+        // Populate table
+        resultsBody.innerHTML = '';
+        data.records.forEach(record => {
+          const row = document.createElement('tr');
+          row.innerHTML = `
+            <td>${record.Student_ID}</td>
+            <td>${record.Status}</td>
+            <td>${record.Confidence}</td>
+            <td>${record.Timestamp}</td>
+          `;
+          resultsBody.appendChild(row);
+        });
+        
+        // Show raw output
+        rawOutput.textContent = JSON.stringify(data, null, 2);
+        
+      } catch (error) {
+        // Show error
+        clearInterval(progressInterval);
+        statusEl.className = 'status error';
+        statusEl.textContent = `Error: ${error.message}`;
+        rawOutput.textContent = error.toString();
+      }
+    });
+  </script>
+</body>
+</html>
