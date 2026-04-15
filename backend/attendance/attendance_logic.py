@@ -26,6 +26,7 @@ def load_reference_images(reference_folder: str) -> Dict[str, np.ndarray]:
     if not os.path.exists(reference_folder):
         return faces
 
+    errors = []
     for filename in os.listdir(reference_folder):
         if filename.lower().endswith(('.png', '.jpg', '.jpeg')):
             student_id = os.path.splitext(filename)[0]
@@ -41,17 +42,19 @@ def load_reference_images(reference_folder: str) -> Dict[str, np.ndarray]:
                     )
                     if detections and len(detections) > 0:
                         face = detections[0]["face"]
-                        # Convert grayscale to RGB if needed
                         if face.dtype != np.uint8:
                             face = (face * 255).astype(np.uint8) if face.max() <= 1.0 else face.astype(np.uint8)
                         faces[student_id] = face
                     else:
-                        print(f"No face detected in: {filename}")
+                        errors.append(f"No face detected in: {filename}")
                 else:
-                    print(f"Could not load image: {filename}")
+                    errors.append(f"Could not load image: {filename}")
             except Exception as e:
-                print(f"Error processing {filename}: {e}")
+                errors.append(f"Error processing {filename}: {str(e)}")
 
+    if not faces and errors:
+        raise RuntimeError(" | ".join(errors))
+    
     return faces
 
 

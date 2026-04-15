@@ -165,7 +165,11 @@ async def process_attendance_endpoint(
         raise HTTPException(status_code=404, detail=f"File {filename} not found")
     
     # Get reference faces
-    reference_faces = get_reference_faces()
+    try:
+        reference_faces = get_reference_faces()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to load reference faces: {str(e)}")
+        
     if not reference_faces:
         raise HTTPException(status_code=400, detail="No reference faces found. Please upload reference photos first.")
     
